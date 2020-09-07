@@ -17,6 +17,7 @@ cell_size = 40
 cell_num = 15
 screen_size = [margin*2 + cell_size*cell_num, margin*2 + cell_size*cell_num]
 coordinate = [[0 for y in range(cell_num)] for x in range(cell_num)]
+mine_coordinate = [[0 for y in range(cell_num)] for x in range(cell_num)]
 current_coordinate = [0, 0]
 secured_coordinate = [(0, 0)]
 initial_cells = [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2), (2, 0), (2, 1), (2, 2)]
@@ -29,6 +30,8 @@ def main():
     pg.display.set_caption("지뢰피하기")
     fps = 60
 
+    screen.fill(background_color)
+    draw_board(screen)
     rects = draw_menu(font, screen)
     pg.display.flip()
 
@@ -42,6 +45,11 @@ def main():
 def select_level(pos, rects, screen, font, fps):
     if rects[0].collidepoint(pos):
         level = "easy"
+        coordinate = [[0 for y in range(cell_num)] for x in range(cell_num)]
+        mine_coordinate = [[0 for y in range(cell_num)] for x in range(cell_num)]
+        current_coordinate = [0, 0]
+        secured_coordinate = [(0, 0)]
+        show_list = []
         start_game(screen, font, fps, level)
 
 def start_game(screen, font, fps, level):
@@ -67,21 +75,22 @@ def start_game(screen, font, fps, level):
                 for key in keynames:
                     if key == "up" and current_coordinate[1] > 0:
                         current_coordinate[1] -= 1
-                        secure_cell(font, screen)
+                        fail = secure_cell(font, screen)
                     elif key == "down" and current_coordinate[1] < cell_num-1:
                         current_coordinate[1] += 1
-                        secure_cell(font, screen)
+                        fail = secure_cell(font, screen)
                     elif key == "left" and current_coordinate[0] > 0:
                         current_coordinate[0] -= 1
-                        secure_cell(font, screen)
+                        fail = secure_cell(font, screen)
                     elif key == "right" and current_coordinate[0] < cell_num-1:
                         current_coordinate[0] += 1
-                        secure_cell(font, screen)
+                        fail = secure_cell(font, screen)
 
             elif event.type == pg.QUIT:
                 exit()
         
         pg.display.flip()
+    
 
 def print_text(font, screen, msg, color, pos):
     textSurface = font.render(msg, True, color, None)
@@ -95,45 +104,44 @@ def set_path():
     while x+y < (cell_num-1)*2:
         if random.random() > 0.5 and x < cell_num-1:
             x += 1
-            coordinate[y][x] = "P"
+            mine_coordinate[y][x] = "P"
         elif y < cell_num-1:
             y += 1
-            coordinate[y][x] = "P"
+            mine_coordinate[y][x] = "P"
 
 def set_mines(level):
     if level == "easy":
-        mine_num = (cell_num**2)//4
+        mine_num = (cell_num**2)//3
 
     minefield = list(range(1, cell_num**2))
-    for y in range(cell_num):
-        for x in range(cell_num):
-            if coordinate[y][x] == "P":
-                minefield.remove(y*cell_num + x)
-                coordinate[y][x] = 0
+    for mine in range(1, cell_num**2):
+        if mine_coordinate[mine//cell_num][mine%cell_num] == "P":
+            minefield.remove(mine)
     mine_list = random.sample(minefield, mine_num)
     for mine in mine_list:
         mine_X = mine%cell_num
         mine_Y = mine//cell_num
-        coordinate[mine_Y][mine_X] = "M"
+        mine_coordinate[mine_Y][mine_X] = "M"
         
-        if mine_Y > 0 and coordinate[mine_Y - 1][mine_X] != "M": # 상
+        coordinate[mine_Y][mine_X] += 1 # 지뢰가 있는 칸
+        if mine_Y > 0: # 상
             coordinate[mine_Y - 1][mine_X] += 1
-        if mine_Y < cell_num-1 and coordinate[mine_Y + 1][mine_X] != "M": # 하
+        if mine_Y < cell_num-1: # 하
             coordinate[mine_Y + 1][mine_X] += 1
-        if mine_X > 0 and coordinate[mine_Y][mine_X - 1] != "M": # 좌
+        if mine_X > 0: # 좌
             coordinate[mine_Y][mine_X - 1] += 1
-        if mine_X < cell_num-1 and coordinate[mine_Y][mine_X + 1] != "M": # 우
+        if mine_X < cell_num-1: # 우
             coordinate[mine_Y][mine_X + 1] += 1
-        if mine_Y > 0 and mine_X > 0 and coordinate[mine_Y - 1][mine_X - 1] != "M": # 좌상
+        if mine_Y > 0 and mine_X > 0: # 좌상
             coordinate[mine_Y - 1][mine_X - 1] += 1
-        if mine_Y < cell_num-1 and mine_X > 0 and coordinate[mine_Y + 1][mine_X - 1] != "M": # 좌하
+        if mine_Y < cell_num-1 and mine_X > 0: # 좌하
             coordinate[mine_Y + 1][mine_X - 1] += 1
-        if mine_Y > 0 and mine_X < cell_num-1 and coordinate[mine_Y - 1][mine_X + 1] != "M": # 우상
+        if mine_Y > 0 and mine_X < cell_num-1: # 우상
             coordinate[mine_Y - 1][mine_X + 1] += 1
-        if mine_Y < cell_num-1 and mine_X < cell_num-1 and coordinate[mine_Y + 1][mine_X + 1] != "M": # 우하
+        if mine_Y < cell_num-1 and mine_X < cell_num-1: # 우하
             coordinate[mine_Y + 1][mine_X + 1] += 1
 
-    for i in coordinate: print(i)
+    for i in mine_coordinate: print(i)
 
 def draw_secured_cells(screen):
     for x, y in secured_coordinate:
@@ -178,10 +186,10 @@ def show_numbers(font, screen):
                 print_text(font, screen, text, red,\
                             (margin + cell_size//2 + cell_size*x, margin + cell_size//2 + cell_size*y))
 
+        bomb_img = pg.image.load("bomb.png")
+        bomb = pg.transform.scale(bomb_img, (cell_size, cell_size))
     for x, y in initial_cells:
-        if coordinate[y][x] == "M":
-            bomb_img = pg.image.load("bomb.png")
-            bomb = pg.transform.scale(bomb_img, (cell_size, cell_size))
+        if mine_coordinate[y][x] == "M":
             screen.blit(bomb, (margin + cell_size*x, margin + cell_size*y))
 
 def draw_me(screen):
@@ -194,6 +202,17 @@ def draw_menu(font, screen):
     return [easy_rect]
 
 def secure_cell(font, screen):
+    if mine_coordinate[current_coordinate[1]][current_coordinate[0]] == "M": # 지뢰칸을 밟았는지 먼저 검사
+        bomb_img = pg.image.load("bomb.png")
+        bomb = pg.transform.scale(bomb_img, (cell_size, cell_size))
+        for x in range(cell_num):
+            for y in range(cell_num):
+                if mine_coordinate[y][x] == "M":
+                    pg.draw.rect(screen, red, [margin + cell_size*x, margin + cell_size*y, cell_size, cell_size])
+                    screen.blit(bomb, (margin + cell_size*x, margin + cell_size*y))
+        draw_board(screen)
+        return True
+
     if (current_coordinate[0], current_coordinate[1]) not in secured_coordinate:
         secured_coordinate.append((current_coordinate[0], current_coordinate[1]))
 
@@ -201,7 +220,8 @@ def secure_cell(font, screen):
     draw_board(screen)
     show_numbers(font, screen)
     draw_me(screen)
-
+    return False
+        
 def exit():
     pg.quit()
     sys.exit()
