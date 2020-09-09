@@ -11,6 +11,7 @@ green            = ( 51, 204,   0)
 blue             = (  0,   0, 255)
 red              = (255,   0,   0)
 yellow           = (255, 255,   0)
+pink             = (255,  51, 204)
 
 margin = 100
 cell_size = 40
@@ -33,7 +34,7 @@ def main():
     while True:
         button.check_click()
 
-def play_game(screen, game, level):
+def play_game(screen, game, level, button):
     screen.fill(background_color)
     game.init_game(level)
 
@@ -48,7 +49,10 @@ def play_game(screen, game, level):
                 game.exit()
 
         if game.is_fail:
-            return
+            return game.is_fail
+
+        if game.is_success:
+            return game.is_success
         
         pg.display.flip()
         clock.tick(fps)
@@ -64,6 +68,7 @@ class Game(object):
     def __init__(self, screen):
         self.screen = screen
         self.font = pg.font.SysFont("Times New Roman", margin*3//10)
+        self.font2 = pg.font.SysFont("새굴림", margin*3//10)
 
     def init_game(self, level):
         self.coordinate = [[0 for y in range(cell_num)] for x in range(cell_num)]
@@ -73,6 +78,7 @@ class Game(object):
         self.show_list = [x for x in initial_cells]
         self.showed_list = []
         self.is_fail = False
+        self.is_success = False
         self.set_path()
         self.set_mines(level)
         self.draw_secured_cells()
@@ -80,7 +86,6 @@ class Game(object):
         self.show_numbers()
         self.draw_me()
         
-
     def draw_board(self):
         for i in range(cell_num+1):
             pg.draw.aaline(self.screen, white, [margin, margin + cell_size*i], [margin + cell_size*cell_num, margin + cell_size*i])
@@ -100,6 +105,9 @@ class Game(object):
             elif key == "right" and self.current_coordinate[0] < cell_num-1:
                 self.current_coordinate[0] += 1
                 self.is_fail = self.secure_cell()
+        
+        if self.current_coordinate[0] == cell_num-1 and self.current_coordinate[1] == cell_num-1:
+            self.is_success = True
 
     def draw_secured_cells(self):
         for x, y in self.secured_coordinate:
@@ -131,15 +139,22 @@ class Game(object):
             if value != "M" and value != cell_num**2-1:
                 if (x, y) not in self.showed_list or (x, y) in self.secured_coordinate:
                     self.showed_list.append((x, y))
-                    if value < 3:
-                        print_text(self.font, self.screen, text, blue,\
+                    if self.mine_coordinate[y][x] == "홀" or self.mine_coordinate[y][x] == "짝":
+                        msg = self.mine_coordinate[y][x]
+                        print_text(self.font2, self.screen, msg, pink,\
                                     (margin + cell_size//2 + cell_size*x, margin + cell_size//2 + cell_size*y))
-                    elif value < 5:
-                        print_text(self.font, self.screen, text, green,\
-                                    (margin + cell_size//2 + cell_size*x, margin + cell_size//2 + cell_size*y))
+      
                     else:
-                        print_text(self.font, self.screen, text, red,\
-                                    (margin + cell_size//2 + cell_size*x, margin + cell_size//2 + cell_size*y))
+                        msg = text
+                        if value < 3:
+                            print_text(self.font, self.screen, msg, blue,\
+                                        (margin + cell_size//2 + cell_size*x, margin + cell_size//2 + cell_size*y))
+                        elif value < 5:
+                            print_text(self.font, self.screen, msg, green,\
+                                        (margin + cell_size//2 + cell_size*x, margin + cell_size//2 + cell_size*y))
+                        else:
+                            print_text(self.font, self.screen, msg, red,\
+                                        (margin + cell_size//2 + cell_size*x, margin + cell_size//2 + cell_size*y))
 
             bomb_img = pg.image.load("bomb.png")
             bomb = pg.transform.scale(bomb_img, (cell_size, cell_size))
@@ -188,6 +203,10 @@ class Game(object):
 
     def set_mines(self, level):
         if level == "easy":
+            mine_num = (cell_num**2)//5
+        elif level == "normal":
+            mine_num = (cell_num**2)//3
+        elif level == "hard" or "lunatic":
             mine_num = (cell_num**2)//2
 
         minefield = list(range(1, cell_num**2))
@@ -218,7 +237,15 @@ class Game(object):
             if mine_Y < cell_num-1 and mine_X < cell_num-1: # 우하
                 self.coordinate[mine_Y + 1][mine_X + 1] += 1
 
-        for i in self.mine_coordinate: print(i)
+        if level == "lunatic":
+            count = 0
+            while count < cell_num//2:
+                for i in range(cell_num**2):
+                    if random.random() > 0.95:
+                        if self.mine_coordinate[i//cell_num][i%cell_num] == 0:
+                            if self.coordinate[i//cell_num][i%cell_num] % 2 == 0: self.mine_coordinate[i//cell_num][i%cell_num] = "짝"
+                            else: self.mine_coordinate[i//cell_num][i%cell_num] = "홀"
+                            count += 1
 
     def exit(self):
         pg.quit()
@@ -228,24 +255,40 @@ class Button(object):
     def __init__(self, screen, game):
         self.screen = screen
         self.font = pg.font.SysFont("Times New Roman", margin*3//10)
+        self.font2 = pg.font.SysFont("새굴림", margin*3//10)
         self.game = game
         self.draw_buttons()
 
     def draw_buttons(self):
-        easy_rect = print_text(self.font, self.screen, "Easy", green, (margin + cell_size , (margin*3)//2 + cell_size*cell_num))
-        self.rects = [easy_rect]
+        first_X = margin + cell_size
+        first_Y = (margin*3)//2 + cell_size*cell_num
+        easy_rect = print_text(self.font, self.screen, "Easy", blue, (first_X, first_Y))
+        normal_rect = print_text(self.font, self.screen, "Normal", green, (first_X + cell_num*10, first_Y))
+        hard_rect = print_text(self.font, self.screen, "Hard", red, (first_X + cell_num*20, first_Y))
+        lunatic_rect = print_text(self.font, self.screen, "Lunatic", yellow, (first_X + cell_num*30, first_Y))
+        self.rects = [easy_rect, normal_rect, hard_rect, lunatic_rect]
         return self.rects
 
     def check_click(self):
+        fail = False
         while True:
             for event in pg.event.get():
                 if event.type == pg.MOUSEBUTTONDOWN:
                     if self.check_button(event.pos):
                         level = self.check_button(event.pos)
-                        play_game(self.screen, self.game, level)
+                        fail = play_game(self.screen, self.game, level, self)
                 elif event.type == pg.QUIT:
                     self.game.exit()
         
+            if fail:
+                if self.game.is_fail:
+                    self.show_msg("lose")
+                    self.draw_buttons()
+                    return
+                elif self.game.is_success:
+                    self.show_msg("win")
+                    self.draw_buttons()
+                    return
             pg.display.flip()
             clock.tick(fps)
 
@@ -253,6 +296,22 @@ class Button(object):
         if self.rects[0].collidepoint(pos):
             level = "easy"
             return level
+        elif self.rects[1].collidepoint(pos):
+            level = "normal"
+            return level
+        elif self.rects[2].collidepoint(pos):
+            level = "hard"
+            return level
+        elif self.rects[3].collidepoint(pos):
+            level = "lunatic"
+            return level
         return False
+    
+    def show_msg(self, sort):
+        msg = {"win"   : ["Win!!", yellow],
+               "lose"  : ["Lose..", red]}
+        
+        print_text(self.font, self.screen, msg[sort][0], msg[sort][1], (margin + cell_size*cell_num//2, margin//2))
+
 
 main()
