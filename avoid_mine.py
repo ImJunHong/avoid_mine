@@ -194,12 +194,29 @@ class Game(object):
     def set_path(self):
         x, y = 0, 0
         while x+y < (cell_num-1)*2:
-            if random.random() > 0.5 and x < cell_num-1:
-                x += 1
-                self.mine_coordinate[y][x] = "P"
-            elif y < cell_num-1:
-                y += 1
-                self.mine_coordinate[y][x] = "P"
+            if random.random() > 0.5:
+                if random.random() > 0.6 and x > 1 and self.mine_coordinate[y][x-1] == 0 and self.mine_coordinate[y][x-2] == 0\
+                    and not (y > 0 and self.mine_coordinate[y-1][x-1] == "P")\
+                    and not (y < cell_num-1 and self.mine_coordinate[y+1][x-1] == "P"):
+                    x -= 1
+                elif x < cell_num-2 and self.mine_coordinate[y][x+1] == 0 and self.mine_coordinate[y][x+2] == 0\
+                    and not (y > 0 and self.mine_coordinate[y-1][x+1] == "P")\
+                    and not (y < cell_num-1 and self.mine_coordinate[y+1][x+1] == "P"):
+                    x += 1
+                elif x == cell_num-2:
+                    x += 1
+            else:
+                if random.random() > 0.6 and y > 1 and self.mine_coordinate[y-1][x] == 0 and self.mine_coordinate[y-2][x] == 0\
+                    and not (x > 0 and self.mine_coordinate[y-1][x-1] == "P")\
+                    and not (x < cell_num-1 and self.mine_coordinate[y-1][x+1] == "P"):
+                    y -= 1
+                elif y < cell_num-2 and self.mine_coordinate[y+1][x] == 0 and self.mine_coordinate[y+2][x] == 0\
+                    and not (x > 0 and self.mine_coordinate[y+1][x-1] == "P")\
+                    and not (x < cell_num-1 and self.mine_coordinate[y+1][x+1] == "P"):
+                    y += 1
+                elif y == cell_num-2:
+                    y += 1
+            self.mine_coordinate[y][x] = "P"
 
     def set_mines(self, level):
         if level == "easy":
