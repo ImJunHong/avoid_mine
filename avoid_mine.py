@@ -1,6 +1,7 @@
 import pygame as pg
 import random
 import sys
+import time
 
 background_color = ( 50,  50,  50)
 black            = (  0,   0,   0)
@@ -77,6 +78,7 @@ class Game(object):
         self.secured_coordinate = [(0, 0)]
         self.show_list = [x for x in initial_cells]
         self.showed_list = []
+        self.block_list = {}
         self.is_fail = False
         self.is_success = False
         self.set_path()
@@ -85,7 +87,7 @@ class Game(object):
         self.draw_board()
         self.show_numbers()
         self.draw_me()
-        
+
     def draw_board(self):
         for i in range(cell_num+1):
             pg.draw.aaline(self.screen, white, [margin, margin + cell_size*i], [margin + cell_size*cell_num, margin + cell_size*i])
@@ -194,29 +196,12 @@ class Game(object):
     def set_path(self):
         x, y = 0, 0
         while x+y < (cell_num-1)*2:
-            if random.random() > 0.5:
-                if random.random() > 0.6 and x > 1 and self.mine_coordinate[y][x-1] == 0 and self.mine_coordinate[y][x-2] == 0\
-                    and not (y > 0 and self.mine_coordinate[y-1][x-1] == "P")\
-                    and not (y < cell_num-1 and self.mine_coordinate[y+1][x-1] == "P"):
-                    x -= 1
-                elif x < cell_num-2 and self.mine_coordinate[y][x+1] == 0 and self.mine_coordinate[y][x+2] == 0\
-                    and not (y > 0 and self.mine_coordinate[y-1][x+1] == "P")\
-                    and not (y < cell_num-1 and self.mine_coordinate[y+1][x+1] == "P"):
-                    x += 1
-                elif x == cell_num-2:
-                    x += 1
-            else:
-                if random.random() > 0.6 and y > 1 and self.mine_coordinate[y-1][x] == 0 and self.mine_coordinate[y-2][x] == 0\
-                    and not (x > 0 and self.mine_coordinate[y-1][x-1] == "P")\
-                    and not (x < cell_num-1 and self.mine_coordinate[y-1][x+1] == "P"):
-                    y -= 1
-                elif y < cell_num-2 and self.mine_coordinate[y+1][x] == 0 and self.mine_coordinate[y+2][x] == 0\
-                    and not (x > 0 and self.mine_coordinate[y+1][x-1] == "P")\
-                    and not (x < cell_num-1 and self.mine_coordinate[y+1][x+1] == "P"):
-                    y += 1
-                elif y == cell_num-2:
-                    y += 1
-            self.mine_coordinate[y][x] = "P"
+            if random.random() > 0.5 and x < cell_num-1:
+                x += 1
+                self.mine_coordinate[y][x] = "P"
+            elif y < cell_num-1:
+                y += 1
+                self.mine_coordinate[y][x] = "P"
 
     def set_mines(self, level):
         if level == "easy":
@@ -254,6 +239,8 @@ class Game(object):
             if mine_Y < cell_num-1 and mine_X < cell_num-1: # 우하
                 self.coordinate[mine_Y + 1][mine_X + 1] += 1
 
+        self.search_blocks()
+
         if level == "lunatic":
             count = 0
             while count < cell_num//2:
@@ -264,6 +251,46 @@ class Game(object):
                             else: self.mine_coordinate[i//cell_num][i%cell_num] = "홀"
                             count += 1
 
+        for i in self.mine_coordinate: print(i)
+        for j in self.block_list: print(j, ":", self.block_list[j])
+
+    def search_blocks(self):
+        self.num_list = [x for x in range(cell_num**2)]
+        count = 0
+        while count < cell_num**2:
+            print("loop")
+            if count in self.num_list and self.mine_coordinate[count] != "M":
+                self.block_list[count] = [count]
+                print(self.block_list, count)
+                self.search_blanks(count, count, self.mine_coordinate)
+                self.num_list.remove(count)
+            count += 1
+            print("count += 1")
+            
+    def search_blanks(self, count, index, coord):
+        print(count)
+        if count%cell_num != 0 and coord[count-1] != "M" and count-1 in self.num_list:
+            print("-", count)
+            self.block_list[index].append(count-1)
+            self.num_list.remove(count-1)
+            self.search_blanks(count-1, index, coord)
+
+        if count%cell_num != cell_num-1 and coord[count+1] != "M" and count+1 in self.num_list:
+            print("+", count)
+            self.block_list[index].append(count+1)
+            self.num_list.remove(count+1)
+            self.search_blanks(count+1, index, coord)
+
+        if count//cell_num != 0 and coord[count-cell_num] != "M" and count-cell_num in self.num_list:
+            self.block_list[index].append(count-cell_num)
+            self.num_list.remove(count-cell_num)
+            self.search_blanks(count-cell_num, index, coord)
+
+        if count//cell_num != cell_num-1 and coord[count+cell_num] != "M" and count+cell_num in self.num_list:
+            self.block_list[index].append(count+cell_num)
+            self.num_list.remove(count+cell_num)
+            self.search_blanks(count+cell_num, index, coord)
+        
     def exit(self):
         pg.quit()
         sys.exit()
@@ -327,8 +354,6 @@ class Button(object):
     def show_msg(self, sort):
         msg = {"win"   : ["Win!!", yellow],
                "lose"  : ["Lose..", red]}
-        
         print_text(self.font, self.screen, msg[sort][0], msg[sort][1], (margin + cell_size*cell_num//2, margin//2))
-
 
 main()
