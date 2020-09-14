@@ -239,11 +239,22 @@ class Game(object):
             if mine_Y < cell_num-1 and mine_X < cell_num-1: # 우하
                 self.coordinate[mine_Y + 1][mine_X + 1] += 1
 
-        self.search_blocks()
+        for i in range(5): # 3칸 이상의 갈 수 없는 인접한 블록을 찾아 갈 수 있도록 연결
+            self.block_list = {}
+            self.search_blocks()
+
+            if len(self.block_list) > 1:
+                deleted_cells = self.link_blocks()
+                if deleted_cells:
+                    for cell in deleted_cells:
+                        self.mine_coordinate[cell//cell_num][cell%cell_num] = 0
+        
+        self.delete_9nines_blocks() # 지뢰매설량이 9인 칸이 있을 경우 자신 포함 주변 9칸 중 한 칸의 지뢰 제거
+        self.reduce_zeros(level) # easy/normal의 경우 지뢰매설량 0인 칸 하나에 지뢰 추가, hard/lunatic의 경우 지뢰매설량이 0인 칸이 없을 때까지 지뢰 추가
 
         if level == "lunatic":
             count = 0
-            while count < cell_num//2:
+            while count < cell_num:
                 for i in range(cell_num**2):
                     if random.random() > 0.95:
                         if self.mine_coordinate[i//cell_num][i%cell_num] == 0:
@@ -251,46 +262,141 @@ class Game(object):
                             else: self.mine_coordinate[i//cell_num][i%cell_num] = "홀"
                             count += 1
 
-        for i in self.mine_coordinate: print(i)
-        for j in self.block_list: print(j, ":", self.block_list[j])
-
     def search_blocks(self):
         self.num_list = [x for x in range(cell_num**2)]
         count = 0
         while count < cell_num**2:
-            print("loop")
-            if count in self.num_list and self.mine_coordinate[count] != "M":
-                self.block_list[count] = [count]
-                print(self.block_list, count)
-                self.search_blanks(count, count, self.mine_coordinate)
+            if count in self.num_list and self.mine_coordinate[count//cell_num][count%cell_num] != "M":
                 self.num_list.remove(count)
+                self.block_list[count] = [count]
+                self.search_blanks(count, count, self.mine_coordinate)
             count += 1
-            print("count += 1")
             
     def search_blanks(self, count, index, coord):
-        print(count)
-        if count%cell_num != 0 and coord[count-1] != "M" and count-1 in self.num_list:
-            print("-", count)
+        if count%cell_num != 0 and coord[(count-1)//cell_num][(count-1)%cell_num] != "M" and count-1 in self.num_list:
             self.block_list[index].append(count-1)
             self.num_list.remove(count-1)
             self.search_blanks(count-1, index, coord)
 
-        if count%cell_num != cell_num-1 and coord[count+1] != "M" and count+1 in self.num_list:
-            print("+", count)
+        if count%cell_num != cell_num-1 and coord[(count+1)//cell_num][(count+1)%cell_num] != "M" and count+1 in self.num_list:
             self.block_list[index].append(count+1)
             self.num_list.remove(count+1)
             self.search_blanks(count+1, index, coord)
 
-        if count//cell_num != 0 and coord[count-cell_num] != "M" and count-cell_num in self.num_list:
+        if count//cell_num != 0 and coord[(count-cell_num)//cell_num][(count-cell_num)%cell_num] != "M" and count-cell_num in self.num_list:
             self.block_list[index].append(count-cell_num)
             self.num_list.remove(count-cell_num)
             self.search_blanks(count-cell_num, index, coord)
 
-        if count//cell_num != cell_num-1 and coord[count+cell_num] != "M" and count+cell_num in self.num_list:
+        if count//cell_num != cell_num-1 and coord[(count+cell_num)//cell_num][(count+cell_num)%cell_num] != "M" and count+cell_num in self.num_list:
             self.block_list[index].append(count+cell_num)
             self.num_list.remove(count+cell_num)
             self.search_blanks(count+cell_num, index, coord)
+
+    def link_blocks(self):
+        link_list = {}
+        for block in self.block_list:
+            if block != 0:
+                link_list[block] = []
+                for path_cell in self.block_list[0]:
+                    for this_cell in self.block_list[block]:
+                        this_X = this_cell%cell_num
+                        this_Y = this_cell//cell_num
+                        if this_Y >= 2 and path_cell == this_cell - cell_num*2:
+                            if this_cell-cell_num not in link_list[block]: link_list[block].append(this_cell-cell_num)
+                        if this_Y <= cell_num-3 and path_cell == this_cell + cell_num*2:
+                            if this_cell+cell_num not in link_list[block]: link_list[block].append(this_cell+cell_num)
+                        if this_X >= 2 and path_cell == this_cell - 2:
+                            if this_cell-1 not in link_list[block]: link_list[block].append(this_cell-1)
+                        if this_X <= cell_num-3 and path_cell == this_cell + 2:
+                            if this_cell+1 not in link_list[block]: link_list[block].append(this_cell+1)
+                        if this_Y >= 1 and this_X >= 1 and path_cell == this_cell - (cell_num + 1):
+                            if this_cell-cell_num not in link_list[block]: link_list[block].append(this_cell-cell_num)
+                            if this_cell-1 not in link_list[block]: link_list[block].append(this_cell-1)
+                        if this_Y >= 1 and this_X <= cell_num-3 and path_cell == this_cell - (cell_num - 1):
+                            if this_cell-cell_num not in link_list[block]: link_list[block].append(this_cell-cell_num)
+                            if this_cell+1 not in link_list[block]: link_list[block].append(this_cell+1)
+                        if this_Y <= cell_num-3 and this_X >= 1 and path_cell == this_cell - (-cell_num + 1):
+                            if this_cell+cell_num not in link_list[block]: link_list[block].append(this_cell+cell_num)
+                            if this_cell-1 not in link_list[block]: link_list[block].append(this_cell-1)
+                        if this_Y <= cell_num-3 and this_X <= cell_num-3 and path_cell == this_cell - (-cell_num - 1):
+                            if this_cell+cell_num not in link_list[block]: link_list[block].append(this_cell+cell_num)
+                            if this_cell+1 not in link_list[block]: link_list[block].append(this_cell+1)
         
+        new_link_list = [random.choice(link_list[x]) for x in link_list if link_list[x] and len(self.block_list[x]) > 2]
+
+        if 0 < len(new_link_list) < 3:
+            return random.sample(new_link_list, 1)
+        elif len(new_link_list) >= 3:
+            return random.sample(new_link_list, len(new_link_list)-1)
+        return False
+
+    def delete_9nines_blocks(self):
+        for y in range(cell_num):
+            for x in range(cell_num):
+                if self.coordinate[y][x] == 9:
+                    random_x = random.choice(range(-1, 2, 1))
+                    random_y = random.choice(range(-1, 2, 1))
+                    self.mine_coordinate[y+random_y][x+random_x] = 0
+                    self.coordinate[y+random_y][x+random_x-1] -= 1
+                    if x+random_x > 0: self.coordinate[y+random_y][x+random_x-1] -= 1
+                    if x+random_x < cell_num-1: self.coordinate[y+random_y][x+random_x+1] -= 1
+                    if y+random_y > 0: self.coordinate[y+random_y-1][x+random_x] -= 1
+                    if y+random_y < cell_num-1: self.coordinate[y+random_y+1][x+random_x] -= 1
+                    if x+random_x > 0 and y+random_y > 0: self.coordinate[y+random_y-1][x+random_x-1] -= 1
+                    if x+random_x < cell_num-1 and y+random_y > 0: self.coordinate[y+random_y-1][x+random_x+1] -= 1
+                    if x+random_x > 0 and y+random_y < cell_num-1: self.coordinate[y+random_y+1][x+random_x-1] -= 1
+                    if x+random_x < cell_num-1 and y+random_y < cell_num-1: self.coordinate[y+random_y+1][x+random_x+1] -= 1
+
+    def reduce_zeros(self, level):
+        if level == "easy" or level == "normal":
+            zero_count = 0
+            zero_list = []
+            zero = None
+            for y in range(cell_num):
+                for x in range(cell_num):
+                    if self.coordinate[y][x] == 0 and (x, y) != (0, 0) and (x, y) != (cell_num-1, cell_num-1):
+                        zero_count += 1
+                        zero_list.append((x, y))
+            if zero_count > 0:
+                zero = random.choice(zero_list)
+                self.mine_coordinate[zero[1]][zero[0]] = "M"
+                self.coordinate[zero[1]][zero[0]] += 1
+                if zero[0] > 0: self.coordinate[zero[1]][zero[0]-1] += 1
+                if zero[0] < cell_num-1: self.coordinate[zero[1]][zero[0]+1] += 1
+                if zero[1] > 0: self.coordinate[zero[1]-1][zero[0]] += 1
+                if zero[1] < cell_num-1: self.coordinate[zero[1]+1][zero[0]] += 1
+                if zero[0] > 0 and zero[1] > 0: self.coordinate[zero[1]-1][zero[0]-1] += 1
+                if zero[0] < cell_num-1 and zero[1] > 0: self.coordinate[zero[1]-1][zero[0]+1] += 1
+                if zero[0] > 0 and zero[1] < cell_num-1: self.coordinate[zero[1]+1][zero[0]-1] += 1
+                if zero[0] < cell_num-1 and zero[1] < cell_num-1: self.coordinate[zero[1]+1][zero[0]+1] += 1
+        else:
+            switch = True
+            while switch:
+                zero_count = 0
+                zero_list = []
+                zero = None
+                for y in range(cell_num):
+                    for x in range(cell_num):
+                        if self.coordinate[y][x] == 0 and (x, y) != (0, 0) and (x, y) != (cell_num-1, cell_num-1):
+                            zero_count += 1
+                            zero_list.append((x, y))
+
+                if zero_count > 0:
+                    zero = random.choice(zero_list)
+                    self.mine_coordinate[zero[1]][zero[0]] = "M"
+                    self.coordinate[zero[1]][zero[0]] += 1
+                    if zero[0] > 0: self.coordinate[zero[1]][zero[0]-1] += 1
+                    if zero[0] < cell_num-1: self.coordinate[zero[1]][zero[0]+1] += 1
+                    if zero[1] > 0: self.coordinate[zero[1]-1][zero[0]] += 1
+                    if zero[1] < cell_num-1: self.coordinate[zero[1]+1][zero[0]] += 1
+                    if zero[0] > 0 and zero[1] > 0: self.coordinate[zero[1]-1][zero[0]-1] += 1
+                    if zero[0] < cell_num-1 and zero[1] > 0: self.coordinate[zero[1]-1][zero[0]+1] += 1
+                    if zero[0] > 0 and zero[1] < cell_num-1: self.coordinate[zero[1]+1][zero[0]-1] += 1
+                    if zero[0] < cell_num-1 and zero[1] < cell_num-1: self.coordinate[zero[1]+1][zero[0]+1] += 1
+                else:
+                    switch = False
+
     def exit(self):
         pg.quit()
         sys.exit()
