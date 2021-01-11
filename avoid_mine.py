@@ -44,6 +44,7 @@ def play_game(screen, game, level, button):
             if event.type == pg.KEYDOWN:
                 pressed = pg.key.get_pressed()
                 keynames = [pg.key.name(key) for key, value in enumerate(pressed) if value]
+                print(keynames)
                 game.check_keypress(keynames)
 
             elif event.type == pg.QUIT:
@@ -95,16 +96,16 @@ class Game(object):
 
     def check_keypress(self, keynames):
         for key in keynames:
-            if key == "up" and self.current_coordinate[1] > 0:
+            if key == "R" and self.current_coordinate[1] > 0:
                 self.current_coordinate[1] -= 1
                 self.is_fail = self.secure_cell()
-            elif key == "down" and self.current_coordinate[1] < cell_num-1:
+            elif key == "Q" and self.current_coordinate[1] < cell_num-1:
                 self.current_coordinate[1] += 1
                 self.is_fail = self.secure_cell()
-            elif key == "left" and self.current_coordinate[0] > 0:
+            elif key == "P" and self.current_coordinate[0] > 0:
                 self.current_coordinate[0] -= 1
                 self.is_fail = self.secure_cell()
-            elif key == "right" and self.current_coordinate[0] < cell_num-1:
+            elif key == "O" and self.current_coordinate[0] < cell_num-1:
                 self.current_coordinate[0] += 1
                 self.is_fail = self.secure_cell()
         
