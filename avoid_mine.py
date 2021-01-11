@@ -44,7 +44,6 @@ def play_game(screen, game, level, button):
             if event.type == pg.KEYDOWN:
                 pressed = pg.key.get_pressed()
                 keynames = [pg.key.name(key) for key, value in enumerate(pressed) if value]
-                print(keynames)
                 game.check_keypress(keynames)
 
             elif event.type == pg.QUIT:
